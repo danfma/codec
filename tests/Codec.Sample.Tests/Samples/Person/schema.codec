@@ -1,0 +1,123 @@
+type Email = String {
+    // constraint annotations
+    constraint min_len(1)
+    constraint max_len(120)
+    constraint regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
+}
+
+type Cpf = String {
+    constraint min_len(9)
+    constraint max_len(9)
+    constraint regex("^[0-9]{9}$")
+}
+
+type Cnpj = String {
+    constraint min_len(14)
+    constraint max_len(14)
+    constraint regex("^[0-9]{14}$")
+}
+
+trait Named {
+    var name: String
+}
+
+abstract entity Person : Named {
+    // val id: Uuid = Uuid::new() - The id is implicitly added to each entity like this
+    // var name: String - is defined by the Named trait, so you can ommit it
+    val type: String {
+      constraint max_length(12)
+      constraint one_of("Individual", "Organization")
+      inheritance discriminator
+    }
+}
+
+// inheritance in codec is done by extending the parent entity but keeping each class data in separated tables/documents
+// if you need to store the same data into the same table/document, you can use traits.
+entity Individual : Person(type = "Individual") {
+    val cpf: Cpf {
+        constraint unique
+    }
+    var email: Email {
+        constraint unique
+    }
+}
+
+entity Organization : Person(type = "Organization") {
+    var doing_business_as: String
+    var cnpj: Cnpj {
+        constraint unique
+    }
+}
+
+service PersonService {
+
+    // return type: Uuid
+    func add_individual(name: String, cpf: Cpf, email: Email) = codec {
+        // insert commands only return by default the generated id
+        let individual = insert Individual {
+            name: name,
+            email, // this is syntax suggar for `email: email,`
+            cpf, // dangling comma is obligatory
+        }
+
+        return individual.id
+    }
+
+    func add_organization(name: String, doing_business_as: String, cnpj: Cnpj) = codec {
+        // this will be replaced by a call to insert_organization(name, doing_business_as, cnpj)
+        let organization = insert Organization {
+            name,
+            doing_business_as,
+            cnpj,
+        }
+
+        return organization.id
+    }
+
+    // return type: Void
+    func update_individual(id: Uuid, name: String?, email: Email?) = codec {
+        update Individual {
+            name: name ?? .name,    // "name:" refers to the field; "name" is the parameter value; and ".name" refers to the current value in the field name for that tuple (row) being updated
+            email: email ?? .email
+        } where .id = id
+    }
+
+    func update_organization(id: Uuid, name: String?, doing_business_as: String?, cnpj: Cnpj?) = codec {
+        update Organization
+        where .id = id
+        set {
+            name: name ?? .name,
+            doing_business_as: doing_business_as ?? .doing_business_as,
+            cnpj: cnpj ?? .cnpj
+        }
+    }
+
+    func remove(id: Uuid) = codec {
+        delete Person
+        where .id = id
+    }
+
+    // return type: Person
+    func find_by_id(id: Uuid) = codec {
+        return from Person p
+            where p.id = id
+            select p
+            single p or error("Person not found")
+    }
+
+    // return type: Person?
+    func find_individual_by_email(email: Email) = codec {
+        return from Individual i
+            where i.email = email
+            select i
+            first or null
+    }
+
+    // return type: List<Person>
+    func list() = codec {
+        return query {
+            from Person p
+            select p
+        }
+    }
+}

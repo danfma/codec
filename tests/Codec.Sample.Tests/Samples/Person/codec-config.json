@@ -1,0 +1,19 @@
+{
+  "targets": {
+    "postgres": {
+      "minVersion": 14,
+      "strategy": "json"
+    },
+    "sqlite": {
+      "minVersion": 3,
+      "strategy": "select"
+    }
+  },
+  "clients": {
+    "csharp": {
+      "namespace": "Samples.Person.Persistence",
+      "langVersion": "14",
+      "outDir": "./csharp"
+    }
+  }
+}
