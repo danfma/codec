@@ -1,11 +1,13 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/docs/">
     <File Path="docs\project-spec.md" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests\Codec.Core.Tests\Codec.Core.Tests.csproj" Type="Classic C#" />
-    <Project Path="tests\Codec.Sample.Tests\Codec.Sample.Tests.csproj" Type="Classic C#" />
+  <Folder Name="/samples/">
+    <Project Path="samples\Samples.PersonManagement\Samples.PersonManagement.csproj" />
   </Folder>
-  <Project Path="Codec.Cli\Codec.Cli.csproj" Type="Classic C#" />
-  <Project Path="Codec.Core\Codec.Core.csproj" Type="Classic C#" />
+  <Folder Name="/tests/">
+    <Project Path="tests\Codec.Core.Tests\Codec.Core.Tests.csproj" Type="C#" />
+  </Folder>
+  <Project Path="Codec.Cli\Codec.Cli.csproj" Type="C#" />
+  <Project Path="Codec.Core\Codec.Core.csproj" Type="C#" />
 </Solution>

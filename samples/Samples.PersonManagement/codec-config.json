@@ -11,7 +11,7 @@
   },
   "clients": {
     "csharp": {
-      "namespace": "Samples.Person.Persistence",
+      "namespace": "Samples.PersonManagement.Persistence",
       "langVersion": "14",
       "outDir": "./csharp"
     }

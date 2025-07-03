@@ -3,7 +3,7 @@
 using System.Data;
 using InterpolatedSql.Dapper;
 
-namespace Samples.Person.Persistence;
+namespace Samples.PersonManagement.Persistence;
 
 public readonly record struct Email(string Value)
 {

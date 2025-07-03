@@ -1,10 +1,10 @@
 using System.Data;
 using DbUp;
 using Npgsql;
-using Samples.Person.Persistence;
+using Samples.PersonManagement.Persistence;
 using Testcontainers.PostgreSql;
 
-namespace Codec.Sample.Tests;
+namespace Samples.PersonManagement;
 
 public class PersonProjectTest(PgFixture fixture, ITestOutputHelper output)
     : IClassFixture<PgFixture>
