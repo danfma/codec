@@ -1,3 +1,5 @@
+package Samples.PersonManagement.Persistence;
+
 type Email = String {
     // constraint annotations
     constraint min_len(1)

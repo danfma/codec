@@ -1,8 +1,7 @@
-// ReSharper disable once CheckNamespace
-
 using System.Data;
 using InterpolatedSql.Dapper;
 
+// ReSharper disable once CheckNamespace
 namespace Samples.PersonManagement.Persistence;
 
 public readonly record struct Email(string Value)
@@ -362,13 +361,10 @@ public sealed class PersonService(IDbConnection connection) : IPersonService
 
 public static class ObjectExtensions
 {
-    extension<T>(T? target)
+    public static T MustBeNotNull<T>(this T? target)
     {
-        public T MustBeNotNull()
-        {
-            ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(target);
 
-            return target;
-        }
+        return target;
     }
 }
