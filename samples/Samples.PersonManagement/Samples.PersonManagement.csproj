@@ -18,8 +18,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Samples\**\*.codec" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Samples\**\*.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="schema.codec" CopyToOutputDirectory="Always" />
+    <Content Include="migrations/**/*.sql" CopyToOutputDirectory="Always" />
     <Content Update="schema.codec">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -31,6 +31,7 @@
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="dbup-postgresql" Version="6.0.3" />
     <PackageReference Include="InterpolatedSql.Dapper" Version="2.4.0" />
+    <PackageReference Include="MartinCostello.Logging.XUnit.v3" Version="0.6.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.6.0" />

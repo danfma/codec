@@ -1,5 +1,7 @@
 using System.Data;
+using System.Diagnostics;
 using InterpolatedSql.Dapper;
+using Microsoft.Extensions.Logging;
 
 // ReSharper disable once CheckNamespace
 namespace Samples.PersonManagement.Persistence;
@@ -94,7 +96,8 @@ public interface IPersonService
     ValueTask<List<Person>> List(CancellationToken cancellationToken = default);
 }
 
-public sealed class PersonService(IDbConnection connection) : IPersonService
+public sealed partial class PersonService(IDbConnection connection, ILogger<PersonService> logger)
+    : IPersonService
 {
     private sealed record PersonRow(
         Guid Id,
@@ -115,24 +118,24 @@ public sealed class PersonService(IDbConnection connection) : IPersonService
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
         var id = Guid.CreateVersion7();
-        var type = nameof(Individual);
 
         var query = connection.SqlBuilder(
             $"""
-            WITH person_insert AS (
-                INSERT INTO person (id, name, type)
-                VALUES ({id}, {name}, {type})
-                RETURNING id
-            )
-            INSERT INTO individual (id, cpf, email)
-            SELECT id, {cpf.Value}, {email.Value}
-            FROM person_insert
-            RETURNING id
+            SELECT id
+            FROM person_service_add_individual({name}, {cpf.Value}, {email.Value}, {id})
+            LIMIT 1
             """
         );
 
         var result = await query.QuerySingleAsync<Guid>(cancellationToken: cancellationToken);
+
+        LogExecutionOfCommandTookTimeMs(
+            logger,
+            nameof(AddIndividual),
+            Stopwatch.GetElapsedTime(start)
+        );
 
         return PersonId.Create(result);
     }
@@ -144,24 +147,24 @@ public sealed class PersonService(IDbConnection connection) : IPersonService
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
         var id = Guid.CreateVersion7();
-        var type = nameof(Organization);
 
         var query = connection.SqlBuilder(
             $"""
-            WITH person_insert AS (
-                INSERT INTO person (id, name, type)
-                VALUES ({id}, {name}, {type})
-                RETURNING id
-            )
-            INSERT INTO organization (id, doing_business_as, cnpj)
-            SELECT id, {doingBusinessAs}, {cnpj.Value}
-            FROM person_insert
-            RETURNING id
+            SELECT id
+            FROM person_service_add_organization({name}, {doingBusinessAs}, {cnpj.Value}, {id})
+            LIMIT 1
             """
         );
 
         var result = await query.QuerySingleAsync<Guid>(cancellationToken: cancellationToken);
+
+        LogExecutionOfCommandTookTimeMs(
+            logger,
+            nameof(AddOrganization),
+            Stopwatch.GetElapsedTime(start)
+        );
 
         return PersonId.Create(result);
     }
@@ -357,6 +360,13 @@ public sealed class PersonService(IDbConnection connection) : IPersonService
 
         return persons;
     }
+
+    [LoggerMessage(LogLevel.Debug, "Execution of {Command} took {Time} ms")]
+    private static partial void LogExecutionOfCommandTookTimeMs(
+        ILogger<PersonService> logger,
+        string command,
+        TimeSpan time
+    );
 }
 
 public static class ObjectExtensions

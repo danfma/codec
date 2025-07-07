@@ -1,5 +1,7 @@
 using System.Data;
 using DbUp;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using Samples.PersonManagement.Persistence;
 using Testcontainers.PostgreSql;
@@ -7,13 +9,24 @@ using Testcontainers.PostgreSql;
 namespace Samples.PersonManagement;
 
 public class PersonProjectTest(PgFixture fixture, ITestOutputHelper output)
-    : IClassFixture<PgFixture>
+    : IClassFixture<PgFixture>,
+        IDisposable
 {
+    private readonly ServiceProvider _serviceProvider = new ServiceCollection()
+        .AddLogging(builder => builder.AddXUnit(output).SetMinimumLevel(LogLevel.Debug))
+        .AddSingleton(fixture.Connection)
+        .AddSingleton<IPersonService, PersonService>()
+        .BuildServiceProvider();
+
+    public void Dispose()
+    {
+        _serviceProvider.Dispose();
+    }
+
     [Fact]
     public async Task Process()
     {
-        var dbConnection = fixture.Connection;
-        var personService = new PersonService(dbConnection);
+        var personService = _serviceProvider.GetRequiredService<IPersonService>();
 
         var name = "Daniel";
         var cpf = Cpf.Create("99398311100");
@@ -66,8 +79,10 @@ public sealed class PgFixture : IAsyncLifetime
         _connection = new NpgsqlConnection(_container.GetConnectionString());
 
         var upgrader = DeployChanges
-            .To.PostgresqlDatabase(_container.GetConnectionString())
-            .WithScriptsFromFileSystem("Samples/Person/migrations/postgres/")
+            .To.PostgresqlDatabase(
+                $"{_container.GetConnectionString()}; Include Error Detail = true"
+            )
+            .WithScriptsFromFileSystem("migrations/postgres/")
             .LogToTrace()
             .Build();
 
