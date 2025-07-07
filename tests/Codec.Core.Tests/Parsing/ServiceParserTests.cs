@@ -1,5 +1,4 @@
 using Codec.Core.Parsing;
-using Pidgin;
 
 namespace Codec.Core.Tests.Parsing;
 
@@ -12,11 +11,14 @@ public class ServiceParserTests
         var input = "service PersonService { }";
 
         // Act
-        var result = CodecParser.ParseService.ParseOrThrow(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        result.Name.ShouldBe("PersonService");
-        result.Functions.ShouldBeEmpty();
+        result.Services.Length.ShouldBe(1);
+        var service = result.Services[0];
+        
+        service.Name.ShouldBe("PersonService");
+        service.Functions.ShouldBeEmpty();
     }
 
     [Fact]
@@ -26,32 +28,41 @@ public class ServiceParserTests
         var input = "  service   PersonService   {   }  ";
 
         // Act
-        var result = CodecParser.ParseService.ParseOrThrow(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        result.Name.ShouldBe("PersonService");
-        result.Functions.ShouldBeEmpty();
+        result.Services.Length.ShouldBe(1);
+        var service = result.Services[0];
+        
+        service.Name.ShouldBe("PersonService");
+        service.Functions.ShouldBeEmpty();
     }
 
     [Fact]
-    public void ParseService_ShouldFailWithInvalidServiceName()
+    public void ParseService_ShouldReturnEmptyProjectWithInvalidServiceName()
     {
         // Arrange
         var input = "service personService { }"; // lowercase name
 
-        // Act & Assert
-        var parseResult = CodecParser.ParseService.Parse(input);
-        parseResult.Success.ShouldBeFalse();
+        // Act
+        var result = CodecParser.Parse(input);
+        
+        // Assert - Parser is now tolerant
+        result.ShouldNotBeNull();
+        result.Services.Length.ShouldBe(0);
     }
 
     [Fact]
-    public void ParseService_ShouldFailWithMissingBraces()
+    public void ParseService_ShouldReturnEmptyProjectWithMissingBraces()
     {
         // Arrange
         var input = "service PersonService";
 
-        // Act & Assert
-        var parseResult = CodecParser.ParseService.Parse(input);
-        parseResult.Success.ShouldBeFalse();
+        // Act
+        var result = CodecParser.Parse(input);
+        
+        // Assert - Parser is now tolerant
+        result.ShouldNotBeNull();
+        result.Services.Length.ShouldBe(0);
     }
 }

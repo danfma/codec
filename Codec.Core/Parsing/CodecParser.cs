@@ -19,6 +19,8 @@ public static class CodecParser
     private static readonly Parser<char, char> Newline = Char('\n');
     private static readonly Parser<char, char> CarriageReturn = Char('\r');
     private static readonly Parser<char, char> Tab = Char('\t');
+    private static readonly Parser<char, char> Semicolon = Char(';');
+    
     private static readonly Parser<char, Unit> Whitespace = OneOf(
             Space,
             Tab,
@@ -40,6 +42,7 @@ public static class CodecParser
         .Then(LetterOrDigit.Or(Char('_')).ManyString(), (first, rest) => first + rest);
 
     // Keywords
+    private static readonly Parser<char, string> PackageKeyword = String("package");
     private static readonly Parser<char, string> TypeKeyword = String("type");
     private static readonly Parser<char, string> ConstraintKeyword = String("constraint");
     private static readonly Parser<char, string> TraitKeyword = String("trait");
@@ -71,6 +74,16 @@ public static class CodecParser
         String("Uuid").ThenReturn(TypeInfo.Uuid),
         String("Json").ThenReturn(TypeInfo.Json)
     );
+
+    // Package declaration parser
+    private static readonly Parser<char, string> ParsePackageDeclaration =
+        from leadingWs in OptionalWhitespace
+        from packageKeyword in PackageKeyword
+        from ws1 in Spaces
+        from packageName in LetterOrDigit.Or(Char('.')).Many().Select(chars => new string(chars.ToArray()))
+        from ws2 in OptionalWhitespace
+        from semicolon in Semicolon
+        select packageName;
 
     // Constraint parsers
     private static readonly Parser<char, string> QuotedString = Quote
@@ -122,7 +135,7 @@ public static class CodecParser
         UniqueConstraint
     );
 
-    internal static readonly Parser<char, ImmutableArray<Annotation>> ParseConstraintBlock =
+    private static readonly Parser<char, ImmutableArray<Annotation>> ParseConstraintBlock =
         from openBrace in OpenBrace
         from ws1 in OptionalWhitespace
         from constraint in ConstraintAnnotation.Optional()
@@ -133,7 +146,7 @@ public static class CodecParser
             : ImmutableArray<Annotation>.Empty;
 
     // Type alias parser - supports both simple and constraint block versions
-    internal static readonly Parser<char, TypeAlias> ParseTypeAlias = OptionalWhitespace
+    private static readonly Parser<char, TypeAlias> ParseTypeAlias = OptionalWhitespace
         .Then(TypeKeyword)
         .Then(Spaces)
         .Then(PascalCaseIdentifier, (_, name) => name)
@@ -151,9 +164,6 @@ public static class CodecParser
                     constraints.GetValueOrDefault(ImmutableArray<Annotation>.Empty)
                 )
         );
-
-    internal static readonly Parser<char, ImmutableArray<TypeAlias>> ParseTypeAliases =
-        ParseTypeAlias.Many().Select(aliases => aliases.ToImmutableArray());
 
     // Field definition parsers
     private static readonly Parser<char, char> Colon = Char(':');
@@ -186,7 +196,7 @@ public static class CodecParser
     );
 
     // Trait definition parser
-    internal static readonly Parser<char, TraitDefinition> ParseTrait =
+    private static readonly Parser<char, TraitDefinition> ParseTrait =
         from leadingWs in OptionalWhitespace
         from traitKeyword in TraitKeyword
         from ws1 in Spaces
@@ -215,7 +225,7 @@ public static class CodecParser
         from trait in TraitReference
         select ImmutableArray.Create(trait);
 
-    internal static readonly Parser<char, EntityDefinition> ParseEntity =
+    private static readonly Parser<char, EntityDefinition> ParseEntity =
         from leadingWs in OptionalWhitespace
         from entityKeyword in EntityKeyword
         from ws1 in Spaces
@@ -239,7 +249,7 @@ public static class CodecParser
             ImmutableArray<Constraint>.Empty
         );
 
-    internal static readonly Parser<char, AbstractEntityDefinition> ParseAbstractEntity =
+    private static readonly Parser<char, AbstractEntityDefinition> ParseAbstractEntity =
         from leadingWs in OptionalWhitespace
         from abstractKeyword in AbstractKeyword
         from ws1 in Spaces
@@ -264,7 +274,7 @@ public static class CodecParser
         );
 
     // Service definition parser - simplified to only parse service name
-    internal static readonly Parser<char, ServiceDefinition> ParseService =
+    private static readonly Parser<char, ServiceDefinition> ParseService =
         from leadingWs in OptionalWhitespace
         from serviceKeyword in ServiceKeyword
         from ws1 in Spaces
@@ -274,4 +284,37 @@ public static class CodecParser
         from ws3 in OptionalWhitespace
         from closeBrace in CloseBrace
         select new ServiceDefinition(name, ImmutableArray<FunctionDefinition>.Empty);
+
+    // All possible top-level statements including package
+    // Use Try to backtrack on failure
+    private static readonly Parser<char, object> AllTopLevelStatement = OneOf(
+        Try(ParsePackageDeclaration.Select(x => (object)x)),
+        Try(ParseAbstractEntity.Select(x => (object)x)), // "abstract entity" - longer keyword first
+        Try(ParseService.Select(x => (object)x)),        // "service"
+        Try(ParseEntity.Select(x => (object)x)),         // "entity"
+        Try(ParseTrait.Select(x => (object)x)),          // "trait"
+        Try(ParseTypeAlias.Select(x => (object)x))       // "type"
+    );
+
+    // Main parser that returns CodecProject
+    public static readonly Parser<char, CodecProject> ParseCodecProject =
+        from ws1 in OptionalWhitespace
+        from allStatements in AllTopLevelStatement.Many()
+        from ws2 in OptionalWhitespace
+        select new CodecProject(
+            allStatements.OfType<string>().FirstOrDefault(), // Package name if present
+            allStatements.OfType<TypeAlias>().ToImmutableArray(),
+            allStatements.OfType<TraitDefinition>().ToImmutableArray(),
+            allStatements.OfType<AbstractEntityDefinition>().ToImmutableArray(),
+            allStatements.OfType<EntityDefinition>().ToImmutableArray(),
+            allStatements.OfType<ServiceDefinition>().ToImmutableArray(),
+            ImmutableArray<ConfigDefinition>.Empty // For now, no configs parsed
+        );
+
+    // Public method to parse a codec string
+    public static CodecProject Parse(string input)
+    {
+        var result = ParseCodecProject.ParseOrThrow(input);
+        return result;
+    }
 }

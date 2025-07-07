@@ -1,5 +1,5 @@
+using Codec.Core.AST;
 using Codec.Core.Parsing;
-using Pidgin;
 
 namespace Codec.Core.Tests.Parsing;
 
@@ -8,15 +8,19 @@ public class MinimalConstraintTest
     [Fact]
     public void ParseSingleConstraint_MinLen_ShouldWork()
     {
-        // Test the minimum constraint parser directly
-        var input = "constraint min_len(1)";
+        // Test constraint parsing through type alias
+        var input = "type Test = String { constraint min_len(1) }";
 
-        // We need to access the internal constraint parser somehow
-        // For now, let's test a simple type alias
-        var typeInput = "type Test = String";
-        var result = CodecParser.ParseTypeAlias.Parse(typeInput);
+        var result = CodecParser.Parse(input);
 
-        result.Success.ShouldBeTrue();
-        result.Value.Name.ShouldBe("Test");
+        result.TypeAliases.Length.ShouldBe(1);
+        var typeAlias = result.TypeAliases[0];
+        
+        typeAlias.Name.ShouldBe("Test");
+        typeAlias.Annotations.Length.ShouldBe(1);
+        typeAlias.Annotations[0].ShouldBeOfType<Min>();
+        
+        var minConstraint = (Min)typeAlias.Annotations[0];
+        minConstraint.Value.ShouldBe(1);
     }
 }

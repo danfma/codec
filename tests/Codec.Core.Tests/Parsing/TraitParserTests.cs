@@ -1,6 +1,5 @@
 using Codec.Core.AST;
 using Codec.Core.Parsing;
-using Pidgin;
 
 namespace Codec.Core.Tests.Parsing;
 
@@ -16,17 +15,16 @@ public class TraitParserTests
 }";
 
         // Act
-        var parseResult = CodecParser.ParseTrait.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Traits.Length.ShouldBe(1);
+        var trait = result.Traits[0];
 
-        var result = parseResult.Value;
+        trait.Name.ShouldBe("Named");
+        trait.Fields.Count.ShouldBe(1);
 
-        result.Name.ShouldBe("Named");
-        result.Fields.Count.ShouldBe(1);
-
-        var field = result.Fields.First();
+        var field = trait.Fields.First();
         field.Name.ShouldBe("name");
         field.Type.ShouldBe(TypeInfo.String);
         field.IsMutable.ShouldBeTrue(); // var means mutable
@@ -42,17 +40,16 @@ public class TraitParserTests
 }";
 
         // Act
-        var parseResult = CodecParser.ParseTrait.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Traits.Length.ShouldBe(1);
+        var trait = result.Traits[0];
 
-        var result = parseResult.Value;
+        trait.Name.ShouldBe("Person");
+        trait.Fields.Count.ShouldBe(1);
 
-        result.Name.ShouldBe("Person");
-        result.Fields.Count.ShouldBe(1);
-
-        var nameField = result.Fields.FirstOrDefault(f => f.Name == "name");
+        var nameField = trait.Fields.FirstOrDefault(f => f.Name == "name");
         nameField.ShouldNotBeNull();
         nameField.Type.ShouldBe(TypeInfo.String);
         nameField.IsMutable.ShouldBeTrue();
@@ -67,27 +64,27 @@ public class TraitParserTests
 }";
 
         // Act
-        var parseResult = CodecParser.ParseTrait.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Traits.Length.ShouldBe(1);
+        var trait = result.Traits[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Empty");
-        result.Fields.Count.ShouldBe(0);
+        trait.Name.ShouldBe("Empty");
+        trait.Fields.Count.ShouldBe(0);
     }
 
     [Theory]
     [InlineData("trait lowercase { }", "Trait names must use PascalCase")]
     [InlineData("trait { }", "Missing trait name")]
     [InlineData("traitNamed { }", "Missing space after keyword")]
-    public void ParseTrait_InvalidSyntax_ShouldFail(string input, string reason)
+    public void ParseTrait_InvalidSyntax_ShouldReturnEmptyProject(string input, string reason)
     {
         // Act
-        var parseResult = CodecParser.ParseTrait.Parse(input);
-
-        // Assert
-        parseResult.Success.ShouldBeFalse($"Should fail for: {reason}");
+        var result = CodecParser.Parse(input);
+        
+        // Assert - Parser is now tolerant and returns empty/partial results
+        result.ShouldNotBeNull();
+        result.Traits.Length.ShouldBe(0);
     }
 }

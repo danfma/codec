@@ -1,6 +1,5 @@
 using Codec.Core.AST;
 using Codec.Core.Parsing;
-using Pidgin;
 
 namespace Codec.Core.Tests.Parsing;
 
@@ -13,16 +12,15 @@ public class TypeAliasWithConstraintsParserTests
         var input = "type Email = String { }";
 
         // Act
-        var parseResult = CodecParser.ParseTypeAlias.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.TypeAliases.Length.ShouldBe(1);
+        var typeAlias = result.TypeAliases[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Email");
-        result.UnderlyingType.ShouldBe(TypeInfo.String);
-        result.Annotations.Length.ShouldBe(0);
+        typeAlias.Name.ShouldBe("Email");
+        typeAlias.UnderlyingType.ShouldBe(TypeInfo.String);
+        typeAlias.Annotations.Length.ShouldBe(0);
     }
 
     [Fact]
@@ -32,16 +30,15 @@ public class TypeAliasWithConstraintsParserTests
         var input = "type Cpf = String { }";
 
         // Act
-        var parseResult = CodecParser.ParseTypeAlias.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.TypeAliases.Length.ShouldBe(1);
+        var typeAlias = result.TypeAliases[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Cpf");
-        result.UnderlyingType.ShouldBe(TypeInfo.String);
-        result.Annotations.Length.ShouldBe(0);
+        typeAlias.Name.ShouldBe("Cpf");
+        typeAlias.UnderlyingType.ShouldBe(TypeInfo.String);
+        typeAlias.Annotations.Length.ShouldBe(0);
     }
 
     [Fact]
@@ -51,16 +48,15 @@ public class TypeAliasWithConstraintsParserTests
         var input = @"type SimpleType = String { }";
 
         // Act
-        var parseResult = CodecParser.ParseTypeAlias.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.TypeAliases.Length.ShouldBe(1);
+        var typeAlias = result.TypeAliases[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("SimpleType");
-        result.UnderlyingType.ShouldBe(TypeInfo.String);
-        result.Annotations.Length.ShouldBe(0);
+        typeAlias.Name.ShouldBe("SimpleType");
+        typeAlias.UnderlyingType.ShouldBe(TypeInfo.String);
+        typeAlias.Annotations.Length.ShouldBe(0);
     }
 
     [Fact]
@@ -70,15 +66,14 @@ public class TypeAliasWithConstraintsParserTests
         var input = "type UserId = String { }";
 
         // Act
-        var parseResult = CodecParser.ParseTypeAlias.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.TypeAliases.Length.ShouldBe(1);
+        var typeAlias = result.TypeAliases[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("UserId");
-        result.UnderlyingType.ShouldBe(TypeInfo.String);
-        result.Annotations.Length.ShouldBe(0);
+        typeAlias.Name.ShouldBe("UserId");
+        typeAlias.UnderlyingType.ShouldBe(TypeInfo.String);
+        typeAlias.Annotations.Length.ShouldBe(0);
     }
 }

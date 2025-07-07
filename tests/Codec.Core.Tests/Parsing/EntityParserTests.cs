@@ -1,5 +1,4 @@
 using Codec.Core.Parsing;
-using Pidgin;
 
 namespace Codec.Core.Tests.Parsing;
 
@@ -12,17 +11,16 @@ public class EntityParserTests
         var input = "entity Individual { }"; // Simplified to empty entity
 
         // Act
-        var parseResult = CodecParser.ParseEntity.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Entities.Length.ShouldBe(1);
+        var entity = result.Entities[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Individual");
-        result.BaseType.ShouldBeNull();
-        result.ImplementedTraits.Length.ShouldBe(0);
-        result.Fields.Length.ShouldBe(0); // Empty entity
+        entity.Name.ShouldBe("Individual");
+        entity.BaseType.ShouldBeNull();
+        entity.ImplementedTraits.Length.ShouldBe(0);
+        entity.Fields.Length.ShouldBe(0); // Empty entity
     }
 
     [Fact]
@@ -32,18 +30,17 @@ public class EntityParserTests
         var input = "entity Individual : Named { }";
 
         // Act
-        var parseResult = CodecParser.ParseEntity.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Entities.Length.ShouldBe(1);
+        var entity = result.Entities[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Individual");
-        result.BaseType.ShouldBeNull();
-        result.ImplementedTraits.Length.ShouldBe(1);
-        result.ImplementedTraits[0].Name.ShouldBe("Named");
-        result.Fields.Length.ShouldBe(0); // Empty entity
+        entity.Name.ShouldBe("Individual");
+        entity.BaseType.ShouldBeNull();
+        entity.ImplementedTraits.Length.ShouldBe(1);
+        entity.ImplementedTraits[0].Name.ShouldBe("Named");
+        entity.Fields.Length.ShouldBe(0); // Empty entity
     }
 
     [Fact]
@@ -53,17 +50,16 @@ public class EntityParserTests
         var input = "abstract entity Person : Named { }";
 
         // Act
-        var parseResult = CodecParser.ParseAbstractEntity.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.AbstractEntities.Length.ShouldBe(1);
+        var abstractEntity = result.AbstractEntities[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Person");
-        result.ImplementedTraits.Length.ShouldBe(1);
-        result.ImplementedTraits[0].Name.ShouldBe("Named");
-        result.Fields.Length.ShouldBe(0); // Empty entity
+        abstractEntity.Name.ShouldBe("Person");
+        abstractEntity.ImplementedTraits.Length.ShouldBe(1);
+        abstractEntity.ImplementedTraits[0].Name.ShouldBe("Named");
+        abstractEntity.Fields.Length.ShouldBe(0); // Empty entity
     }
 
     [Fact]
@@ -73,30 +69,30 @@ public class EntityParserTests
         var input = "entity Individual : Person { }";
 
         // Act
-        var parseResult = CodecParser.ParseEntity.Parse(input);
+        var result = CodecParser.Parse(input);
 
         // Assert
-        parseResult.Success.ShouldBeTrue($"Failed to parse: {input}");
+        result.Entities.Length.ShouldBe(1);
+        var entity = result.Entities[0];
 
-        var result = parseResult.Value;
-
-        result.Name.ShouldBe("Individual");
+        entity.Name.ShouldBe("Individual");
         // For now, we'll parse Person as a trait until we implement proper entity inheritance resolution
-        result.ImplementedTraits.Length.ShouldBe(1);
-        result.ImplementedTraits[0].Name.ShouldBe("Person");
-        result.Fields.Length.ShouldBe(0); // Empty entity
+        entity.ImplementedTraits.Length.ShouldBe(1);
+        entity.ImplementedTraits[0].Name.ShouldBe("Person");
+        entity.Fields.Length.ShouldBe(0); // Empty entity
     }
 
     [Theory]
     [InlineData("entity lowercase { }", "Entity names must use PascalCase")]
     [InlineData("entity { }", "Missing entity name")]
     [InlineData("entityIndividual { }", "Missing space after keyword")]
-    public void ParseEntity_InvalidSyntax_ShouldFail(string input, string reason)
+    public void ParseEntity_InvalidSyntax_ShouldReturnEmptyProject(string input, string reason)
     {
         // Act
-        var parseResult = CodecParser.ParseEntity.Parse(input);
-
-        // Assert
-        parseResult.Success.ShouldBeFalse($"Should fail for: {reason}");
+        var result = CodecParser.Parse(input);
+        
+        // Assert - Parser is now tolerant and returns empty/partial results
+        result.ShouldNotBeNull();
+        result.Entities.Length.ShouldBe(0);
     }
 }
