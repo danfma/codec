@@ -169,3 +169,149 @@ BEGIN
                  JOIN organization_insert oi ON pi.person_id = oi.organization_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function for update_individual
+CREATE OR REPLACE FUNCTION person_service_update_individual(
+    p_id uuid,
+    p_name text DEFAULT NULL,
+    p_email text DEFAULT NULL
+)
+    RETURNS VOID AS
+$$
+BEGIN
+    -- Update person table
+    UPDATE person 
+    SET name = COALESCE(p_name, name)
+    WHERE id = p_id;
+    
+    -- Update individual table
+    UPDATE individual 
+    SET email = COALESCE(p_email, email)
+    WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function for update_organization
+CREATE OR REPLACE FUNCTION person_service_update_organization(
+    p_id uuid,
+    p_name text DEFAULT NULL,
+    p_doing_business_as text DEFAULT NULL,
+    p_cnpj text DEFAULT NULL
+)
+    RETURNS VOID AS
+$$
+BEGIN
+    -- Update person table
+    UPDATE person 
+    SET name = COALESCE(p_name, name)
+    WHERE id = p_id;
+    
+    -- Update organization table
+    UPDATE organization 
+    SET 
+        doing_business_as = COALESCE(p_doing_business_as, doing_business_as),
+        cnpj = COALESCE(p_cnpj, cnpj)
+    WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function for remove
+CREATE OR REPLACE FUNCTION person_service_remove(
+    p_id uuid
+)
+    RETURNS VOID AS
+$$
+BEGIN
+    DELETE FROM person WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function for find_by_id
+CREATE OR REPLACE FUNCTION person_service_find_by_id(
+    p_id uuid
+)
+    RETURNS TABLE
+            (
+                id                uuid,
+                name              text,
+                type              varchar(12),
+                cpf               varchar(11),
+                email             varchar(120),
+                doing_business_as text,
+                cnpj              varchar(14)
+            )
+AS
+$$
+BEGIN
+    RETURN QUERY
+        SELECT 
+            p.id,
+            p.name,
+            p.type,
+            i.cpf,
+            i.email,
+            o.doing_business_as,
+            o.cnpj
+        FROM person p
+        LEFT JOIN individual i ON p.id = i.id
+        LEFT JOIN organization o ON p.id = o.id
+        WHERE p.id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function for find_individual_by_email
+CREATE OR REPLACE FUNCTION person_service_find_individual_by_email(
+    p_email text
+)
+    RETURNS TABLE
+            (
+                id    uuid,
+                name  text,
+                cpf   varchar(11),
+                email varchar(120)
+            )
+AS
+$$
+BEGIN
+    RETURN QUERY
+        SELECT 
+            p.id,
+            p.name,
+            i.cpf,
+            i.email
+        FROM person p
+        INNER JOIN individual i ON p.id = i.id
+        WHERE i.email = p_email
+        LIMIT 1;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function for list
+CREATE OR REPLACE FUNCTION person_service_list()
+    RETURNS TABLE
+            (
+                id                uuid,
+                name              text,
+                type              varchar(12),
+                cpf               varchar(11),
+                email             varchar(120),
+                doing_business_as text,
+                cnpj              varchar(14)
+            )
+AS
+$$
+BEGIN
+    RETURN QUERY
+        SELECT 
+            p.id,
+            p.name,
+            p.type,
+            i.cpf,
+            i.email,
+            o.doing_business_as,
+            o.cnpj
+        FROM person p
+        LEFT JOIN individual i ON p.id = i.id
+        LEFT JOIN organization o ON p.id = o.id;
+END;
+$$ LANGUAGE plpgsql;

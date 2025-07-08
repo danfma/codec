@@ -1,5 +1,6 @@
 using System.Data;
 using System.Diagnostics;
+using Dapper;
 using InterpolatedSql.Dapper;
 using Microsoft.Extensions.Logging;
 
@@ -8,17 +9,61 @@ namespace Samples.PersonManagement.Persistence;
 
 public readonly record struct Email(string Value)
 {
-    public static Email Create(string value) => new(value);
+    public static Email Create(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new ArgumentException("Email cannot be null or empty", nameof(value));
+
+        if (value.Length < 1 || value.Length > 120)
+            throw new ArgumentException(
+                "Email must be between 1 and 120 characters",
+                nameof(value)
+            );
+
+        if (
+            !System.Text.RegularExpressions.Regex.IsMatch(
+                value,
+                @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+            )
+        )
+            throw new ArgumentException("Invalid email format", nameof(value));
+
+        return new(value);
+    }
 }
 
 public readonly record struct Cpf(string Value)
 {
-    public static Cpf Create(string value) => new(value);
+    public static Cpf Create(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new ArgumentException("CPF cannot be null or empty", nameof(value));
+
+        if (value.Length != 11)
+            throw new ArgumentException("CPF must be exactly 11 characters", nameof(value));
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[0-9]{11}$"))
+            throw new ArgumentException("CPF must contain only digits", nameof(value));
+
+        return new(value);
+    }
 }
 
 public readonly record struct Cnpj(string Value)
 {
-    public static Cnpj Create(string value) => new(value);
+    public static Cnpj Create(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            throw new ArgumentException("CNPJ cannot be null or empty", nameof(value));
+
+        if (value.Length != 14)
+            throw new ArgumentException("CNPJ must be exactly 14 characters", nameof(value));
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[0-9]{14}$"))
+            throw new ArgumentException("CNPJ must contain only digits", nameof(value));
+
+        return new(value);
+    }
 }
 
 public interface INamed
@@ -176,22 +221,21 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
+
         var query = connection.SqlBuilder(
             $"""
-            WITH person_update AS (
-                UPDATE person 
-                SET name = COALESCE({name}, name)
-                WHERE id = {id.Value}
-                RETURNING id
-            )
-            UPDATE individual 
-            SET email = COALESCE({email?.Value}, email)
-            WHERE id = {id.Value}
-            AND EXISTS (SELECT 1 FROM person_update WHERE person_update.id = individual.id)
+            SELECT person_service_update_individual({id.Value}, {name}, {email?.Value})
             """
         );
 
         await query.ExecuteAsync(cancellationToken: cancellationToken);
+
+        LogExecutionOfCommandTookTimeMs(
+            logger,
+            nameof(UpdateIndividual),
+            Stopwatch.GetElapsedTime(start)
+        );
     }
 
     public async ValueTask UpdateOrganization(
@@ -202,31 +246,32 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
+
         var query = connection.SqlBuilder(
             $"""
-            WITH person_update AS (
-                UPDATE person 
-                SET name = COALESCE({name}, name)
-                WHERE id = {id.Value}
-                RETURNING id
-            )
-            UPDATE organization 
-            SET 
-                doing_business_as = COALESCE({doingBusinessAs}, doing_business_as),
-                cnpj = COALESCE({cnpj?.Value}, cnpj)
-            WHERE id = {id.Value}
-            AND EXISTS (SELECT 1 FROM person_update WHERE person_update.id = organization.id)
+            SELECT person_service_update_organization({id.Value}, {name}, {doingBusinessAs}, {cnpj?.Value})
             """
         );
 
         await query.ExecuteAsync(cancellationToken: cancellationToken);
+
+        LogExecutionOfCommandTookTimeMs(
+            logger,
+            nameof(UpdateOrganization),
+            Stopwatch.GetElapsedTime(start)
+        );
     }
 
     public async ValueTask Remove(PersonId id, CancellationToken cancellationToken = default)
     {
-        var query = connection.SqlBuilder($"DELETE FROM person WHERE id = {id.Value}");
+        var start = Stopwatch.GetTimestamp();
+
+        var query = connection.SqlBuilder($"SELECT person_service_remove({id.Value})");
 
         await query.ExecuteAsync(cancellationToken: cancellationToken);
+
+        LogExecutionOfCommandTookTimeMs(logger, nameof(Remove), Stopwatch.GetElapsedTime(start));
     }
 
     public async ValueTask<Person> FindById(
@@ -234,20 +279,19 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
+
         var query = connection.SqlBuilder(
             $"""
             SELECT 
-                p.id AS "Id",
-                p.name AS "Name",
-                p.type AS "Type",
-                i.cpf AS "Cpf",
-                i.email AS "Email",
-                o.doing_business_as AS "DoingBusinessAs",
-                o.cnpj AS "Cnpj"
-            FROM person p
-            LEFT JOIN individual i ON p.id = i.id
-            LEFT JOIN organization o ON p.id = o.id
-            WHERE p.id = {id.Value}
+                id AS "Id",
+                name AS "Name",
+                type AS "Type",
+                cpf AS "Cpf",
+                email AS "Email",
+                doing_business_as AS "DoingBusinessAs",
+                cnpj AS "Cnpj"
+            FROM person_service_find_by_id({id.Value})
             """
         );
 
@@ -257,6 +301,8 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
 
         if (result == null)
             throw new InvalidOperationException("Person not found");
+
+        LogExecutionOfCommandTookTimeMs(logger, nameof(FindById), Stopwatch.GetElapsedTime(start));
 
         return result.Type switch
         {
@@ -283,22 +329,27 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
         CancellationToken cancellationToken = default
     )
     {
+        var start = Stopwatch.GetTimestamp();
+
         var query = connection.SqlBuilder(
             $"""
             SELECT 
-                p.id AS "Id",
-                p.name AS "Name",
-                i.cpf AS "Cpf",
-                i.email AS "Email"
-            FROM person p
-            INNER JOIN individual i ON p.id = i.id
-            WHERE i.email = {email.Value}
-            LIMIT 1
+                id AS "Id",
+                name AS "Name",
+                cpf AS "Cpf",
+                email AS "Email"
+            FROM person_service_find_individual_by_email({email.Value})
             """
         );
 
         var result = await query.QuerySingleOrDefaultAsync<IndividualRow>(
             cancellationToken: cancellationToken
+        );
+
+        LogExecutionOfCommandTookTimeMs(
+            logger,
+            nameof(FindIndividualByEmail),
+            Stopwatch.GetElapsedTime(start)
         );
 
         if (result == null)
@@ -315,19 +366,19 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
 
     public async ValueTask<List<Person>> List(CancellationToken cancellationToken = default)
     {
+        var start = Stopwatch.GetTimestamp();
+
         var query = connection.SqlBuilder(
             $"""
             SELECT 
-                p.id AS "Id",
-                p.name AS "Name",
-                p.type AS "Type",
-                i.cpf AS "Cpf",
-                i.email AS "Email",
-                o.doing_business_as AS "DoingBusinessAs",
-                o.cnpj AS "Cnpj"
-            FROM person p
-            LEFT JOIN individual i ON p.id = i.id
-            LEFT JOIN organization o ON p.id = o.id
+                id AS "Id",
+                name AS "Name",
+                type AS "Type",
+                cpf AS "Cpf",
+                email AS "Email",
+                doing_business_as AS "DoingBusinessAs",
+                cnpj AS "Cnpj"
+            FROM person_service_list()
             """
         );
 
@@ -357,6 +408,8 @@ public sealed partial class PersonService(IDbConnection connection, ILogger<Pers
 
             persons.Add(person);
         }
+
+        LogExecutionOfCommandTookTimeMs(logger, nameof(List), Stopwatch.GetElapsedTime(start));
 
         return persons;
     }
