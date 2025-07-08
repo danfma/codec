@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Codec.Cli.Commands;
 
 public sealed class DatabaseCommand(ILogger<DatabaseCommand> logger)

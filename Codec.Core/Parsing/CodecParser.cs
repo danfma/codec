@@ -20,7 +20,7 @@ public static class CodecParser
     private static readonly Parser<char, char> CarriageReturn = Char('\r');
     private static readonly Parser<char, char> Tab = Char('\t');
     private static readonly Parser<char, char> Semicolon = Char(';');
-    
+
     private static readonly Parser<char, Unit> Whitespace = OneOf(
             Space,
             Tab,
@@ -80,7 +80,10 @@ public static class CodecParser
         from leadingWs in OptionalWhitespace
         from packageKeyword in PackageKeyword
         from ws1 in Spaces
-        from packageName in LetterOrDigit.Or(Char('.')).Many().Select(chars => new string(chars.ToArray()))
+        from packageName in LetterOrDigit
+            .Or(Char('.'))
+            .Many()
+            .Select(chars => new string(chars.ToArray()))
         from ws2 in OptionalWhitespace
         from semicolon in Semicolon
         select packageName;
@@ -290,10 +293,10 @@ public static class CodecParser
     private static readonly Parser<char, object> AllTopLevelStatement = OneOf(
         Try(ParsePackageDeclaration.Select(x => (object)x)),
         Try(ParseAbstractEntity.Select(x => (object)x)), // "abstract entity" - longer keyword first
-        Try(ParseService.Select(x => (object)x)),        // "service"
-        Try(ParseEntity.Select(x => (object)x)),         // "entity"
-        Try(ParseTrait.Select(x => (object)x)),          // "trait"
-        Try(ParseTypeAlias.Select(x => (object)x))       // "type"
+        Try(ParseService.Select(x => (object)x)), // "service"
+        Try(ParseEntity.Select(x => (object)x)), // "entity"
+        Try(ParseTrait.Select(x => (object)x)), // "trait"
+        Try(ParseTypeAlias.Select(x => (object)x)) // "type"
     );
 
     // Main parser that returns CodecProject
@@ -312,9 +315,5 @@ public static class CodecParser
         );
 
     // Public method to parse a codec string
-    public static CodecProject Parse(string input)
-    {
-        var result = ParseCodecProject.ParseOrThrow(input);
-        return result;
-    }
+    public static CodecProject Parse(string input) => ParseCodecProject.ParseOrThrow(input);
 }

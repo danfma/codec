@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Codec.Cli.Commands;
 
 public class MigrationCommand(ILogger<MigrationCommand> logger)
